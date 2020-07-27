@@ -1,23 +1,27 @@
-#[derive(Debug, Clone, Copy, PartialEq)]
+use std::path::PathBuf;
+#[derive(Debug, Clone, PartialEq)]
 pub enum ExitCode {
-    Success,
+    Success(Option<Vec<PathBuf>>),
     GeneralError,
     KilledBySigint,
 }
 
-impl Into<i32> for ExitCode {
-    fn into(self) -> i32 {
+impl Into<(i32, Option<Vec<PathBuf>>)> for ExitCode {
+    fn into(self) -> (i32, Option<Vec<PathBuf>>) {
         match self {
-            ExitCode::Success => 0,
-            ExitCode::GeneralError => 1,
-            ExitCode::KilledBySigint => 130,
+            ExitCode::Success(output) => (0, output),
+            ExitCode::GeneralError => (1, None),
+            ExitCode::KilledBySigint => (130, None),
         }
     }
 }
 
 impl ExitCode {
     fn is_error(&self) -> bool {
-        *self != ExitCode::Success
+        match self {
+            ExitCode::Success(_) => false,
+            _ => true
+        }
     }
 }
 
@@ -25,7 +29,24 @@ pub fn merge_exitcodes(results: &[ExitCode]) -> ExitCode {
     if results.iter().any(ExitCode::is_error) {
         return ExitCode::GeneralError;
     }
-    ExitCode::Success
+    let mut buf: Vec<PathBuf> = Vec::new();
+    for result in results {
+        match result {
+            ExitCode::Success(output) => {
+                if let Some(lines) = output {
+                    for line in lines.iter() {
+                        buf.push( line.into() );
+                    }
+                }
+            },
+            _ => panic!("infallible: exit codes already purged.")
+        }
+    }
+    if buf.len() > 0 {
+        ExitCode::Success(Some(buf))
+    } else {
+        ExitCode::Success(None)
+    }
 }
 
 #[cfg(test)]
@@ -34,7 +55,7 @@ mod tests {
 
     #[test]
     fn success_when_no_results() {
-        assert_eq!(merge_exitcodes(&[]), ExitCode::Success);
+        assert_eq!(merge_exitcodes(&[]), ExitCode::Success(None));
     }
 
     #[test]
@@ -48,11 +69,11 @@ mod tests {
             ExitCode::GeneralError
         );
         assert_eq!(
-            merge_exitcodes(&[ExitCode::KilledBySigint, ExitCode::Success]),
+            merge_exitcodes(&[ExitCode::KilledBySigint, ExitCode::Success(None)]),
             ExitCode::GeneralError
         );
         assert_eq!(
-            merge_exitcodes(&[ExitCode::Success, ExitCode::GeneralError]),
+            merge_exitcodes(&[ExitCode::Success(None), ExitCode::GeneralError]),
             ExitCode::GeneralError
         );
         assert_eq!(
@@ -63,10 +84,10 @@ mod tests {
 
     #[test]
     fn success_if_no_error() {
-        assert_eq!(merge_exitcodes(&[ExitCode::Success]), ExitCode::Success);
+        assert_eq!(merge_exitcodes(&[ExitCode::Success(None)]), ExitCode::Success(None));
         assert_eq!(
-            merge_exitcodes(&[ExitCode::Success, ExitCode::Success]),
-            ExitCode::Success
+            merge_exitcodes(&[ExitCode::Success(None), ExitCode::Success(None)]),
+            ExitCode::Success(None)
         );
     }
 }

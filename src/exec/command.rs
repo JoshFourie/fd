@@ -25,7 +25,7 @@ pub fn execute_command(mut cmd: Command, out_perm: &Mutex<()>) -> ExitCode {
             let _ = stderr.lock().write_all(&output.stderr);
 
             if output.status.code() == Some(0) {
-                ExitCode::Success
+                ExitCode::Success(None)
             } else {
                 ExitCode::GeneralError
             }

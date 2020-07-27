@@ -136,7 +136,8 @@ pub fn scan(path_vec: &[PathBuf], pattern: Arc<Regex>, config: Arc<Options>) -> 
         ctrlc::set_handler(move || {
             if wq.load(Ordering::Relaxed) {
                 // Ctrl-C has been pressed twice, exit NOW
-                process::exit(ExitCode::KilledBySigint.into());
+                let exit_code: (_, _) = ExitCode::KilledBySigint.into();
+                process::exit(exit_code.0);
             } else {
                 wq.store(true, Ordering::Relaxed);
             }
@@ -222,6 +223,7 @@ fn spawn_receiver(
 
             let mut num_results = 0;
 
+            let mut found: Vec<PathBuf> = Vec::new();
             for worker_result in rx {
                 match worker_result {
                     WorkerResult::Entry(value) => {
@@ -235,12 +237,13 @@ fn spawn_receiver(
                                 {
                                     // Flush the buffer
                                     for v in &buffer {
-                                        output::print_entry(
-                                            &mut stdout,
-                                            v,
-                                            &config,
-                                            &wants_to_quit,
-                                        );
+                                        found.push((*v).clone());
+                                        // output::print_entry(
+                                        //     &mut stdout,
+                                        //     v,
+                                        //     &config,
+                                        //     &wants_to_quit,
+                                        // );
                                     }
                                     buffer.clear();
 
@@ -249,7 +252,8 @@ fn spawn_receiver(
                                 }
                             }
                             ReceiverMode::Streaming => {
-                                output::print_entry(&mut stdout, &value, &config, &wants_to_quit);
+                                buffer.push(value);
+                                // output::print_entry(&mut stdout, &value, &config, &wants_to_quit);
                             }
                         }
 
@@ -274,11 +278,12 @@ fn spawn_receiver(
             if !buffer.is_empty() {
                 buffer.sort();
                 for value in buffer {
-                    output::print_entry(&mut stdout, &value, &config, &wants_to_quit);
+                    found.push(value);
+                    // output::print_entry(&mut stdout, &value, &config, &wants_to_quit);
                 }
             }
 
-            ExitCode::Success
+            ExitCode::Success(Some(found))
         }
     })
 }

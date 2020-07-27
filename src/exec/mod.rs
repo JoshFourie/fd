@@ -178,7 +178,7 @@ impl CommandTemplate {
         if has_path {
             execute_command(cmd, &Mutex::new(()))
         } else {
-            ExitCode::Success
+            ExitCode::Success(Some(paths))
         }
     }
 }

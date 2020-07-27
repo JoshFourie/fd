@@ -35,8 +35,9 @@ pub fn print_entry(
     };
 
     if r.is_err() {
+        let exit_code: (_, _) = ExitCode::GeneralError.into();
         // Probably a broken pipe. Exit gracefully.
-        process::exit(ExitCode::GeneralError.into());
+        process::exit(exit_code.0);
     }
 }
 
@@ -65,7 +66,9 @@ fn print_entry_colorized(
         // TODO: can we move this out of the if-statement? Why do we call it that often?
         if wants_to_quit.load(Ordering::Relaxed) {
             writeln!(stdout)?;
-            process::exit(ExitCode::KilledBySigint.into());
+
+            let exit_code: (_, _) = ExitCode::KilledBySigint.into();
+            process::exit(exit_code.0);
         }
     }
 
