@@ -38,9 +38,9 @@ use crate::regex_helper::pattern_has_uppercase_char;
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-fn run() -> Result<ExitCode> {
-    let matches = app::build_app().get_matches_from(env::args_os());
+pub use app::build_app;
 
+pub fn run(matches: &clap::ArgMatches<'static>) -> Result<ExitCode> {
     // Set the current working directory of the process
     if let Some(base_directory) = matches.value_of_os("base-directory") {
         let base_directory = Path::new(base_directory);
@@ -415,17 +415,4 @@ fn run() -> Result<ExitCode> {
         })?;
 
     walk::scan(&search_paths, Arc::new(re), Arc::new(config))
-}
-
-fn main() {
-    let result = run();
-    match result {
-        Ok(exit_code) => {
-            process::exit(exit_code.into());
-        }
-        Err(err) => {
-            eprintln!("[fd error]: {}", err);
-            process::exit(ExitCode::GeneralError.into());
-        }
-    }
 }
